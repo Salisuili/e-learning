@@ -22,6 +22,10 @@ export default function LoginScreen() {
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.content}>
+        <TouchableOpacity onPress={() => router.push('/')} style={styles.backButton}>
+          <Text style={[styles.backText, { color: theme.primary }]}>← Home</Text>
+        </TouchableOpacity>
+
         <View style={styles.header}>
           <Text style={[styles.title, { color: theme.text }]}>E-Learning</Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
@@ -107,9 +111,18 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start', // FIXED (removed space-between issue)
   },
 
+  backButton: {
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  backText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
   header: {
     alignItems: 'center',
-    marginTop: 60,
+    marginTop: 40,
     marginBottom: 40,
   },
 

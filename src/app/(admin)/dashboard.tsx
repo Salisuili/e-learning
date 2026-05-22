@@ -47,7 +47,7 @@ export default function AdminDashboard() {
 
         <TouchableOpacity
           style={[styles.actionButton, { backgroundColor: theme.primary }]}
-          onPress={() => {}}
+          onPress={() => router.push('/(admin)/courses')}
         >
           <Text style={styles.actionButtonText}>Manage Courses</Text>
         </TouchableOpacity>

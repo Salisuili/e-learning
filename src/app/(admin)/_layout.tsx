@@ -19,6 +19,16 @@ export default function AdminLayout() {
       />
 
       <Tabs.Screen
+        name="courses"
+        options={{
+          title: 'Courses',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="library-outline" size={size} color={color} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
         name="users"
         options={{
           title: 'Users',

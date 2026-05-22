@@ -46,8 +46,8 @@ export default function RegisterScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Text style={[styles.backText, { color: theme.primary }]}>← Back</Text>
+          <TouchableOpacity onPress={() => router.push('/')} style={styles.backButton}>
+            <Text style={[styles.backText, { color: theme.primary }]}>← Home</Text>
           </TouchableOpacity>
 
           <View style={styles.header}>

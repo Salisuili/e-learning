@@ -44,6 +44,27 @@ export const userService = {
     }
   },
 
+  // GET USERS BY ROLE
+  async getUsersByRole(
+    role: UserRole,
+  ): Promise<{ users: User[] | null; error: string | null }> {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("role", role)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        return { users: null, error: error.message };
+      }
+
+      return { users: (data as User[]) || [], error: null };
+    } catch (error) {
+      return { users: null, error: (error as Error).message };
+    }
+  },
+
   // DELETE USER
   async deleteUser(userId: string): Promise<{ error: string | null }> {
     try {
