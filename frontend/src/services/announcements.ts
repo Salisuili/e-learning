@@ -3,6 +3,18 @@ import { api } from "./supabase";
 
 export const announcementService = {
   /**
+   * Get all announcements (admin/lecturer)
+   */
+  async getAllAnnouncements(): Promise<{ announcements: Announcement[] | null; error: string | null }> {
+    try {
+      const response = await api.get('/announcements');
+      return { announcements: (response.announcements as Announcement[]) || [], error: null };
+    } catch (error) {
+      return { announcements: null, error: (error as Error).message };
+    }
+  },
+
+  /**
    * Get announcements for a course
    */
   async getCourseAnnouncements(

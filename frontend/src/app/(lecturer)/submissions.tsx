@@ -1,6 +1,7 @@
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
-import { supabase } from '@/services/supabase';
+import { assignmentService } from '@/services/assignments';
+import { courseService } from '@/services/courses';
 import { Assignment, AssignmentSubmission, Course } from '@/types';
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -51,19 +52,12 @@ export default function LecturerSubmissions() {
     setError(null);
 
     try {
-      const { data, error: err } = await supabase
-        .from('courses')
-        .select('*')
-        .eq('lecturer_id', user.id)
-        .order('created_at', { ascending: false });
-
+      const { courses: data, error: err } = await courseService.getLecturerCourses(user.id);
       if (err) {
-        if (!err.message.includes('relation') && !err.message.includes('does not exist')) {
-          setError(err.message);
-        }
+        setError(err);
         setCourses([]);
       } else {
-        setCourses((data as Course[]) || []);
+        setCourses(data || []);
       }
     } catch (e: any) {
       setError(e?.message || 'Failed to load courses');
@@ -79,7 +73,9 @@ export default function LecturerSubmissions() {
   const onRefresh = async () => {
     setRefreshing(true);
     setError(null);
-    if (selectedCourse) {
+    if (selectedAssignment) {
+      await loadSubmissions(selectedAssignment);
+    } else if (selectedCourse) {
       await loadAssignmentsForCourse(selectedCourse);
     } else {
       await loadCourses();
@@ -94,19 +90,12 @@ export default function LecturerSubmissions() {
     setError(null);
 
     try {
-      const { data, error: err } = await supabase
-        .from('assignments')
-        .select('*')
-        .eq('course_id', course.id)
-        .order('due_date', { ascending: true });
-
+      const { assignments: data, error: err } = await assignmentService.getCourseAssignments(course.id);
       if (err) {
-        if (!err.message.includes('relation') && !err.message.includes('does not exist')) {
-          setError(err.message);
-        }
+        setError(err);
         setAssignments([]);
       } else {
-        setAssignments((data as Assignment[]) || []);
+        setAssignments(data || []);
       }
     } catch (e: any) {
       setError(e?.message || 'Failed to load assignments');
@@ -120,19 +109,12 @@ export default function LecturerSubmissions() {
     setError(null);
 
     try {
-      const { data, error: err } = await supabase
-        .from('assignment_submissions')
-        .select('*')
-        .eq('assignment_id', assignment.id)
-        .order('submitted_at', { ascending: false });
-
+      const { submissions: data, error: err } = await assignmentService.getAssignmentSubmissions(assignment.id);
       if (err) {
-        if (!err.message.includes('relation') && !err.message.includes('does not exist')) {
-          setError(err.message);
-        }
+        setError(err);
         setSubmissions([]);
       } else {
-        setSubmissions((data as AssignmentSubmission[]) || []);
+        setSubmissions(data || []);
       }
     } catch (e: any) {
       setError(e?.message || 'Failed to load submissions');
@@ -172,16 +154,13 @@ export default function LecturerSubmissions() {
 
     setActionLoading(true);
     try {
-      const { error: err } = await supabase
-        .from('assignment_submissions')
-        .update({
-          score,
-          feedback: gradeFeedback.trim(),
-          graded_at: new Date().toISOString(),
-        })
-        .eq('id', gradingSubmission.id);
+      const { error: err } = await assignmentService.gradeSubmission(
+        gradingSubmission.id,
+        score,
+        gradeFeedback.trim()
+      );
 
-      if (err) Alert.alert('Error', err.message);
+      if (err) Alert.alert('Error', err);
       else {
         setSubmissions((prev) =>
           prev.map((s) =>

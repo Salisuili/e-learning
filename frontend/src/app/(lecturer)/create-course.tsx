@@ -32,8 +32,12 @@ export default function CreateCourseScreen() {
   const [credits, setCredits] = useState('3');
   const [semester, setSemester] = useState('First');
   const [year, setYear] = useState(String(new Date().getFullYear()));
+  const [level, setLevel] = useState('100');
+  const [session, setSession] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<string | null>(null);
+
+  const LEVELS = ['100', '200', '300', '400', '500', '600', '700'];
 
   const validate = (): boolean => {
     if (!code.trim()) { setErrors('Course code is required'); return false; }
@@ -43,6 +47,7 @@ export default function CreateCourseScreen() {
     if (isNaN(c) || c < 1 || c > 6) { setErrors('Credits must be between 1 and 6'); return false; }
     if (!semester) { setErrors('Please select a semester'); return false; }
     if (!year || isNaN(parseInt(year, 10))) { setErrors('Valid year is required'); return false; }
+    if (!level) { setErrors('Please select a level'); return false; }
     return true;
   };
 
@@ -62,6 +67,8 @@ export default function CreateCourseScreen() {
       credits: parseInt(credits, 10),
       semester,
       year: parseInt(year, 10),
+      level,
+      session,
     });
 
     if (error) {
@@ -218,6 +225,40 @@ export default function CreateCourseScreen() {
               value={year}
               onChangeText={setYear}
               keyboardType="numeric"
+            />
+          </View>
+
+          {/* Level */}
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: theme.text }]}>Level *</Text>
+            <View style={styles.chipRow}>
+              {LEVELS.map((lvl) => (
+                <TouchableOpacity
+                  key={lvl}
+                  style={[styles.chip, {
+                    backgroundColor: level === lvl ? theme.primary + '20' : theme.backgroundElement,
+                    borderColor: level === lvl ? theme.primary : theme.border,
+                  }]}
+                  onPress={() => setLevel(lvl)}
+                >
+                  <Text style={[styles.chipText, { color: level === lvl ? theme.primary : theme.textSecondary }]}>
+                    Level {lvl}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Session */}
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: theme.text }]}>Session</Text>
+            <TextInput
+              style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.cardBackground }]}
+              placeholder="e.g. 2025/2026"
+              placeholderTextColor={theme.textSecondary}
+              value={session}
+              onChangeText={setSession}
+              autoCapitalize="none"
             />
           </View>
 

@@ -4,6 +4,7 @@ import { assignmentService } from '@/services/assignments';
 import { courseService } from '@/services/courses';
 import { Assignment, AssignmentSubmission, Course } from '@/types';
 import { Ionicons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -33,6 +34,7 @@ export default function StudentAssignments() {
   const [submitModalVisible, setSubmitModalVisible] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<(Assignment & { course?: Course }) | null>(null);
   const [submissionText, setSubmissionText] = useState('');
+  const [submissionFile, setSubmissionFile] = useState<{ name: string; uri: string; mimeType?: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -92,13 +94,30 @@ export default function StudentAssignments() {
   const openSubmitModal = (assignment: Assignment & { course?: Course }) => {
     setSelectedAssignment(assignment);
     setSubmissionText('');
+    setSubmissionFile(null);
     setSubmitModalVisible(true);
+  };
+
+  const pickSubmissionFile = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf', 'image/jpeg', 'image/png', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'application/zip'],
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const file = result.assets[0];
+        setSubmissionFile({ name: file.name, uri: file.uri, mimeType: file.mimeType || undefined });
+      }
+    } catch (err) {
+      console.error('File picker error:', err);
+    }
   };
 
   const handleSubmit = async () => {
     if (!selectedAssignment || !user?.id) return;
-    if (!submissionText.trim()) {
-      Alert.alert('Error', 'Please enter your submission text');
+    if (!submissionText.trim() && !submissionFile) {
+      Alert.alert('Error', 'Please enter your submission text or upload a file');
       return;
     }
 
@@ -106,7 +125,7 @@ export default function StudentAssignments() {
     const { submission, error } = await assignmentService.submitAssignment(
       selectedAssignment.id,
       user.id,
-      { submission_text: submissionText.trim() }
+      { submission_text: submissionText.trim(), submission_file: submissionFile || undefined }
     );
 
     if (error) {
@@ -305,6 +324,35 @@ export default function StudentAssignments() {
                   numberOfLines={6}
                   textAlignVertical="top"
                 />
+
+                {/* File Upload */}
+                <TouchableOpacity
+                  style={[styles.filePickBtn, { borderColor: theme.border, backgroundColor: submissionFile ? theme.success + '10' : theme.cardBackground }]}
+                  onPress={pickSubmissionFile}
+                >
+                  {submissionFile ? (
+                    <>
+                      <Ionicons name="document-text-outline" size={22} color={theme.success} />
+                      <View style={styles.filePickInfo}>
+                        <Text style={[styles.filePickName, { color: theme.text }]} numberOfLines={1}>{submissionFile.name}</Text>
+                        <Text style={[styles.filePickStatus, { color: theme.success }]}>File selected</Text>
+                      </View>
+                      <TouchableOpacity onPress={() => setSubmissionFile(null)}>
+                        <Ionicons name="close-circle" size={20} color={theme.error} />
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <>
+                      <Ionicons name="cloud-upload-outline" size={22} color={theme.primary} />
+                      <View style={styles.filePickInfo}>
+                        <Text style={[styles.filePickName, { color: theme.text }]}>Upload a file (optional)</Text>
+                        <Text style={[styles.filePickStatus, { color: theme.textSecondary }]}>PDF, Word, Image, ZIP</Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+                    </>
+                  )}
+                </TouchableOpacity>
+
                 <TouchableOpacity
                   style={[styles.modalSubmitBtn, { backgroundColor: theme.primary, opacity: submitting ? 0.6 : 1 }]}
                   onPress={handleSubmit}
@@ -367,6 +415,10 @@ const styles = StyleSheet.create({
   modalSubtitle: { fontSize: 14, marginBottom: 4 },
   modalDue: { fontSize: 13, fontWeight: '600', marginBottom: 16 },
   modalInput: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, minHeight: 120, marginBottom: 16 },
+  filePickBtn: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderStyle: 'dashed', borderRadius: 14, padding: 14, marginBottom: 16, gap: 12 },
+  filePickInfo: { flex: 1 },
+  filePickName: { fontSize: 14, fontWeight: '600', marginBottom: 2 },
+  filePickStatus: { fontSize: 12 },
   modalSubmitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, gap: 8 },
   modalSubmitText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

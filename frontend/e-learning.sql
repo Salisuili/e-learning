@@ -34,6 +34,8 @@ CREATE TABLE public.courses (
   year integer,
   created_at timestamp without time zone DEFAULT now(),
   updated_at timestamp without time zone DEFAULT now(),
+  level character varying DEFAULT '100'::character varying,
+  session character varying,
   CONSTRAINT courses_pkey PRIMARY KEY (id),
   CONSTRAINT courses_lecturer_id_fkey FOREIGN KEY (lecturer_id) REFERENCES public.users(id)
 );

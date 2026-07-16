@@ -31,7 +31,11 @@ interface CourseForm {
   credits: string;
   semester: string;
   year: string;
+  level: string;
+  session: string;
 }
+
+const LEVELS = ['100', '200', '300', '400', '500', '600', '700'];
 
 const INITIAL_FORM: CourseForm = {
   code: '',
@@ -42,6 +46,8 @@ const INITIAL_FORM: CourseForm = {
   credits: '3',
   semester: 'First',
   year: String(new Date().getFullYear()),
+  level: '100',
+  session: '',
 };
 
 const DEPARTMENTS = [
@@ -228,6 +234,8 @@ export default function AdminCourses() {
       credits: String(course.credits),
       semester: course.semester,
       year: String(course.year),
+      level: course.level || '100',
+      session: course.session || '',
     });
     setFormErrors(null);
     setModalVisible(true);
@@ -281,6 +289,8 @@ export default function AdminCourses() {
       credits: parseInt(form.credits, 10),
       semester: form.semester,
       year: parseInt(form.year, 10),
+      level: form.level,
+      session: form.session,
     };
 
     if (editingCourse) {

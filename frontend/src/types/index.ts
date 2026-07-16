@@ -36,6 +36,8 @@ export interface Course {
   credits: number;
   semester: string;
   year: number;
+  level?: string;
+  session?: string;
   created_at: string;
   updated_at?: string;
 }

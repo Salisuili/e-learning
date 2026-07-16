@@ -7,6 +7,25 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
+const DEPARTMENTS = [
+  'Computer Science',
+  'Computer Engineering',
+  'Cyber Security',
+  'Information Technology',
+  'Software Engineering',
+  'Data Science',
+  'Electrical Engineering',
+  'Mechanical Engineering',
+  'Civil Engineering',
+  'Business Administration',
+  'Accounting',
+  'Economics',
+  'Mathematics',
+  'Physics',
+  'Chemistry',
+  'Biology',
+];
+
 export default function RegisterScreen() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -198,14 +217,27 @@ export default function RegisterScreen() {
             {/* Department */}
             <View style={styles.inputGroup}>
               <Text style={[styles.label, { color: theme.text }]}>Department *</Text>
-              <TextInput
-                style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.cardBackground }]}
-                placeholder="Enter your department"
-                placeholderTextColor={theme.textSecondary}
-                value={department}
-                onChangeText={setDepartment}
-                editable={!uploading}
-              />
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.deptScroll}
+              >
+                {DEPARTMENTS.map((dept) => (
+                  <TouchableOpacity
+                    key={dept}
+                    style={[styles.deptChip, {
+                      backgroundColor: department === dept ? theme.primary + '20' : theme.backgroundElement,
+                      borderColor: department === dept ? theme.primary : theme.border,
+                    }]}
+                    onPress={() => setDepartment(dept)}
+                    disabled={uploading}
+                  >
+                    <Text style={[styles.deptChipText, { color: department === dept ? theme.primary : theme.textSecondary }]}>
+                      {dept}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
 
             {/* Identification Number */}
@@ -342,6 +374,9 @@ const styles = StyleSheet.create({
   roleRow: { flexDirection: 'row', gap: 12 },
   roleButton: { flex: 1, flexDirection: 'row', borderWidth: 1.5, borderRadius: 14, paddingVertical: 14, justifyContent: 'center', alignItems: 'center', gap: 8 },
   roleLabel: { fontSize: 15, fontWeight: '600' },
+  deptScroll: { maxHeight: 44 },
+  deptChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1, marginRight: 8 },
+  deptChipText: { fontSize: 13, fontWeight: '600' },
   uploadButton: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderStyle: 'dashed', borderRadius: 14, padding: 16, gap: 12 },
   uploadTextContainer: { flex: 1 },
   uploadTitle: { fontSize: 14, fontWeight: '600', marginBottom: 2 },

@@ -18,6 +18,50 @@ export const courseService = {
   },
 
   /**
+   * Get available courses for students to browse (with level/department filtering)
+   */
+  async getAvailableCourses(
+    level?: string,
+    department?: string,
+  ): Promise<{ courses: Course[] | null; error: string | null }> {
+    try {
+      let endpoint = '/courses/available';
+      const params: string[] = [];
+      if (level) params.push(`level=${encodeURIComponent(level)}`);
+      if (department) params.push(`department=${encodeURIComponent(department)}`);
+      if (params.length > 0) endpoint += '?' + params.join('&');
+      const response = await api.get(endpoint);
+      return { courses: (response.courses as Course[]) || [], error: null };
+    } catch (error) {
+      return { courses: null, error: (error as Error).message };
+    }
+  },
+
+  /**
+   * Get distinct levels
+   */
+  async getLevels(): Promise<{ levels: string[] | null; error: string | null }> {
+    try {
+      const response = await api.get('/courses/levels');
+      return { levels: (response.levels as string[]) || [], error: null };
+    } catch (error) {
+      return { levels: null, error: (error as Error).message };
+    }
+  },
+
+  /**
+   * Get distinct sessions
+   */
+  async getSessions(): Promise<{ sessions: string[] | null; error: string | null }> {
+    try {
+      const response = await api.get('/courses/sessions');
+      return { sessions: (response.sessions as string[]) || [], error: null };
+    } catch (error) {
+      return { sessions: null, error: (error as Error).message };
+    }
+  },
+
+  /**
    * Get courses for a specific student
    */
   async getStudentCourses(

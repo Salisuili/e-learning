@@ -99,6 +99,13 @@ export default function LecturerDashboard() {
         <Text style={styles.headerSub}>
           You are teaching {courses.length} course{courses.length !== 1 ? 's' : ''}
         </Text>
+        <TouchableOpacity
+          style={styles.createBtn}
+          onPress={() => router.push('/(lecturer)/create-course')}
+        >
+          <Ionicons name="add-circle-outline" size={18} color="#fff" />
+          <Text style={styles.createBtnText}>Create New Course</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -143,6 +150,8 @@ const styles = StyleSheet.create({
   avatar: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', marginLeft: 12 },
   avatarText: { fontSize: 22, fontWeight: '700', color: '#fff' },
   headerSub: { fontSize: 14, color: 'rgba(255,255,255,0.7)' },
+  createBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, marginTop: 12, gap: 6, alignSelf: 'flex-start' },
+  createBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   scrollView: { flex: 1 },
   padding: { padding: 16 },
   sectionTitle: { fontSize: 20, fontWeight: '700', marginBottom: 16, marginTop: 8 },

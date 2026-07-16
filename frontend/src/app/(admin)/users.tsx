@@ -1,6 +1,7 @@
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
 import { userService } from '@/services/users';
+import { getFileUrl } from '@/services/supabase';
 import { User, UserRole } from '@/types';
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -176,7 +177,8 @@ export default function AdminUsers() {
   };
 
   const openDocument = (url: string) => {
-    Linking.openURL(url).catch(() => Alert.alert('Error', 'Could not open document URL'));
+    const fullUrl = getFileUrl(url) || url;
+    Linking.openURL(fullUrl).catch(() => Alert.alert('Error', 'Could not open document URL'));
   };
 
   const getInitials = (name: string) => {

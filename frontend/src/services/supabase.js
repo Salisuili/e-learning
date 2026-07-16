@@ -27,6 +27,26 @@ const getApiUrl = () => {
 
 const API_BASE_URL = getApiUrl();
 
+// Base URL without /api suffix for file uploads (uploads are served from root, not /api)
+const getFileBaseUrl = () => {
+  const url = getApiUrl();
+  // Remove /api suffix to get the base server URL
+  return url.replace(/\/api$/, '');
+};
+
+const FILE_BASE_URL = getFileBaseUrl();
+
+/**
+ * Resolve a relative file URL (e.g., /uploads/documents/file.pdf) to an absolute URL
+ */
+export function getFileUrl(path) {
+  if (!path) return null;
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  // Remove leading slash if present to avoid double slashes
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${FILE_BASE_URL}${cleanPath}`;
+}
+
 console.log(`[API] Connecting to backend at: ${API_BASE_URL}`);
 
 class ApiClient {

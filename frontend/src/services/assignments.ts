@@ -89,10 +89,10 @@ export const assignmentService = {
   async submitAssignment(
     assignmentId: string,
     studentId: string,
-    submissionData: Omit<
-      AssignmentSubmission,
-      "id" | "submitted_at" | "assignment_id" | "student_id"
-    >,
+    submissionData: {
+      submission_text?: string;
+      submission_file?: { name: string; uri: string; mimeType?: string };
+    },
   ): Promise<{
     submission: AssignmentSubmission | null;
     error: string | null;
@@ -100,8 +100,12 @@ export const assignmentService = {
     try {
       const formData = new FormData();
       formData.append('submission_text', submissionData.submission_text || '');
-      if ((submissionData as any).submission_file) {
-        formData.append('submission', (submissionData as any).submission_file);
+      if (submissionData.submission_file) {
+        formData.append('submission', {
+          uri: submissionData.submission_file.uri,
+          name: submissionData.submission_file.name,
+          type: submissionData.submission_file.mimeType || 'application/octet-stream',
+        } as any);
       }
       const response = await api.upload('POST', `/assignments/${assignmentId}/submit`, formData);
       return { submission: (response.submission as AssignmentSubmission) || null, error: null };
