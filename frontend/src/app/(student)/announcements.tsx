@@ -36,41 +36,37 @@ export default function StudentAnnouncements() {
     setLoading(true);
 
     try {
-      const { courses } = await courseService.getStudentCourses(user.id);
-      const allAnnouncements: (Announcement & { course_name?: string })[] = [];
-
-      if (courses) {
-        for (const course of courses) {
-          const { announcements: courseAnnouncements } = await announcementService.getCourseAnnouncements(course.id);
-          if (courseAnnouncements) {
-            for (const ann of courseAnnouncements) {
-              allAnnouncements.push({ ...ann, course_name: course.title });
-            }
-          }
+      const { announcements: data, error } = await announcementService.getMyFeed();
+      if (error) {
+        console.error('Failed to load announcements:', error);
+        setAnnouncements([]);
+      } else {
+        // Attach course names if available from enrolled courses
+        const { courses } = await courseService.getStudentCourses(user.id);
+        const courseMap: Record<string, string> = {};
+        if (courses) {
+          courses.forEach(c => { courseMap[c.id] = c.title; });
         }
+
+        const mapped = (data || []).map(ann => ({
+          ...ann,
+          course_name: ann.course_id ? (courseMap[ann.course_id] || 'Course') : 'General',
+        }));
+
+        // Sort: pinned first, then by date
+        mapped.sort((a, b) => {
+          if (a.is_pinned && !b.is_pinned) return -1;
+          if (!a.is_pinned && b.is_pinned) return 1;
+          return new Date(b.posted_at).getTime() - new Date(a.posted_at).getTime();
+        });
+
+        setAnnouncements(mapped);
       }
-
-      // Also get department announcements
-      if (user?.department) {
-        const { announcements: deptAnnouncements } = await announcementService.getDepartmentAnnouncements(user.department);
-        if (deptAnnouncements) {
-          allAnnouncements.push(...deptAnnouncements.map((a) => ({ ...a, course_name: 'Department' })));
-        }
-      }
-
-      // Sort: pinned first, then by date
-      allAnnouncements.sort((a, b) => {
-        if (a.is_pinned && !b.is_pinned) return -1;
-        if (!a.is_pinned && b.is_pinned) return 1;
-        return new Date(b.posted_at).getTime() - new Date(a.posted_at).getTime();
-      });
-
-      setAnnouncements(allAnnouncements);
     } catch (err) {
       console.error('Failed to load announcements:', err);
     }
     setLoading(false);
-  }, [user?.id, user?.department]);
+  }, [user?.id]);
 
   useEffect(() => {
     loadAnnouncements();

@@ -50,11 +50,7 @@ export default function AdminProfile() {
   ];
 
   const menuItems = [
-    { label: 'Account Settings', icon: 'settings-outline', color: '#6366F1' },
-    { label: 'Notifications', icon: 'notifications-outline', color: '#10B981' },
-    { label: 'Privacy & Security', icon: 'lock-closed-outline', color: '#F59E0B' },
-    { label: 'Help & Support', icon: 'help-circle-outline', color: '#8B5CF6' },
-    { label: 'About', icon: 'information-circle-outline', color: '#EC4899' },
+    { label: 'Notifications', icon: 'notifications-outline', color: '#10B981', route: '/(admin)/announcements' },
   ];
 
   return (

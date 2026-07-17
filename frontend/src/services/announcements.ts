@@ -15,6 +15,31 @@ export const announcementService = {
   },
 
   /**
+   * Get announcements for the current user's feed (course + system-wide)
+   */
+  async getMyFeed(): Promise<{ announcements: Announcement[] | null; error: string | null }> {
+    try {
+      const response = await api.get('/announcements/my-feed');
+      return { announcements: (response.announcements as Announcement[]) || [], error: null };
+    } catch (error) {
+      return { announcements: null, error: (error as Error).message };
+    }
+  },
+
+  /**
+   * Get announcements for all courses the lecturer teaches
+   */
+  async getLecturerCourseAnnouncements(
+  ): Promise<{ announcements: Announcement[] | null; error: string | null }> {
+    try {
+      const response = await api.get('/announcements/lecturer/my-courses');
+      return { announcements: (response.announcements as Announcement[]) || [], error: null };
+    } catch (error) {
+      return { announcements: null, error: (error as Error).message };
+    }
+  },
+
+  /**
    * Get announcements for a course
    */
   async getCourseAnnouncements(

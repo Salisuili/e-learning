@@ -54,7 +54,7 @@ export default function LecturerDashboard() {
     <Animated.View style={{ opacity: fadeAnim }}>
       <TouchableOpacity
         style={[styles.courseCard, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}
-        onPress={() => router.push({ pathname: '/course/[id]', params: { id: item.id } })}
+        onPress={() => router.push({ pathname: '/(lecturer)/course/[id]', params: { id: item.id } })}
         activeOpacity={0.7}
       >
         <View style={styles.cardTop}>
@@ -99,13 +99,7 @@ export default function LecturerDashboard() {
         <Text style={styles.headerSub}>
           You are teaching {courses.length} course{courses.length !== 1 ? 's' : ''}
         </Text>
-        <TouchableOpacity
-          style={styles.createBtn}
-          onPress={() => router.push('/(lecturer)/create-course')}
-        >
-          <Ionicons name="add-circle-outline" size={18} color="#fff" />
-          <Text style={styles.createBtnText}>Create New Course</Text>
-        </TouchableOpacity>
+        {/* Create course handled by admin; lecturers cannot create courses here */}
       </View>
 
       <ScrollView

@@ -93,6 +93,12 @@ export interface AssignmentSubmission {
   score?: number;
   feedback?: string;
   graded_at?: string;
+  student?: {
+    id: string;
+    email: string;
+    full_name: string;
+    identification_number?: string;
+  };
 }
 
 /**

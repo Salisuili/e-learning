@@ -19,10 +19,13 @@ import {
   View,
 } from 'react-native';
 
+type Screen = 'courses' | 'assignments' | 'submissions';
+
 export default function LecturerSubmissions() {
   const { user } = useAuth();
   const theme = useTheme();
 
+  const [screen, setScreen] = useState<Screen>('courses');
   const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -30,15 +33,13 @@ export default function LecturerSubmissions() {
   const [submissions, setSubmissions] = useState<AssignmentSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [submissionsLoading, setSubmissionsLoading] = useState(false);
+  const [submittingGrade, setSubmittingGrade] = useState(false);
 
-  // Grading modal
-  const [gradeModalVisible, setGradeModalVisible] = useState(false);
-  const [gradingSubmission, setGradingSubmission] = useState<AssignmentSubmission | null>(null);
+  // Grade modal
+  const [gradeModal, setGradeModal] = useState(false);
+  const [gradeTarget, setGradeTarget] = useState<AssignmentSubmission | null>(null);
   const [gradeScore, setGradeScore] = useState('');
   const [gradeFeedback, setGradeFeedback] = useState('');
-  const [actionLoading, setActionLoading] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -48,22 +49,21 @@ export default function LecturerSubmissions() {
 
   const loadCourses = useCallback(async () => {
     if (!user?.id) return;
-    setLoading(true);
-    setError(null);
-
     try {
+      setLoading(true);
       const { courses: data, error: err } = await courseService.getLecturerCourses(user.id);
       if (err) {
-        setError(err);
+        Alert.alert('Error', err);
         setCourses([]);
       } else {
         setCourses(data || []);
       }
     } catch (e: any) {
-      setError(e?.message || 'Failed to load courses');
+      Alert.alert('Error', e?.message || 'Failed to load courses');
       setCourses([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [user?.id]);
 
   useEffect(() => {
@@ -72,109 +72,115 @@ export default function LecturerSubmissions() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    setError(null);
-    if (selectedAssignment) {
-      await loadSubmissions(selectedAssignment);
-    } else if (selectedCourse) {
-      await loadAssignmentsForCourse(selectedCourse);
-    } else {
+    if (screen === 'courses') {
       await loadCourses();
+    } else if (screen === 'assignments' && selectedCourse) {
+      await loadAssignments(selectedCourse);
+    } else if (screen === 'submissions' && selectedAssignment) {
+      await loadSubmissions(selectedAssignment);
     }
     setRefreshing(false);
   };
 
-  const loadAssignmentsForCourse = async (course: Course) => {
-    setSelectedCourse(course);
-    setSelectedAssignment(null);
-    setSubmissions([]);
-    setError(null);
-
+  const loadAssignments = async (course: Course) => {
     try {
+      setLoading(true);
+      setSelectedCourse(course);
+      setSelectedAssignment(null);
+      setSubmissions([]);
+      setScreen('assignments');
+
       const { assignments: data, error: err } = await assignmentService.getCourseAssignments(course.id);
       if (err) {
-        setError(err);
+        Alert.alert('Error', err);
         setAssignments([]);
       } else {
         setAssignments(data || []);
       }
     } catch (e: any) {
-      setError(e?.message || 'Failed to load assignments');
+      Alert.alert('Error', e?.message || 'Failed to load assignments');
       setAssignments([]);
+    } finally {
+      setLoading(false);
     }
   };
 
   const loadSubmissions = async (assignment: Assignment) => {
-    setSelectedAssignment(assignment);
-    setSubmissionsLoading(true);
-    setError(null);
-
     try {
+      setLoading(true);
+      setSelectedAssignment(assignment);
+      setScreen('submissions');
+
       const { submissions: data, error: err } = await assignmentService.getAssignmentSubmissions(assignment.id);
       if (err) {
-        setError(err);
+        Alert.alert('Error', err);
         setSubmissions([]);
       } else {
         setSubmissions(data || []);
       }
     } catch (e: any) {
-      setError(e?.message || 'Failed to load submissions');
+      Alert.alert('Error', e?.message || 'Failed to load submissions');
       setSubmissions([]);
+    } finally {
+      setLoading(false);
     }
-    setSubmissionsLoading(false);
   };
 
-  const backToCourses = () => {
+  const goBackToCourses = () => {
+    setScreen('courses');
     setSelectedCourse(null);
     setSelectedAssignment(null);
     setAssignments([]);
     setSubmissions([]);
-    setError(null);
   };
 
-  const backToAssignments = () => {
+  const goBackToAssignments = () => {
+    setScreen('assignments');
     setSelectedAssignment(null);
     setSubmissions([]);
-    setError(null);
   };
 
   const openGradeModal = (submission: AssignmentSubmission) => {
-    setGradingSubmission(submission);
-    setGradeScore(submission.score !== null && submission.score !== undefined ? String(submission.score) : '');
+    setGradeTarget(submission);
+    setGradeScore(submission.score != null ? String(submission.score) : '');
     setGradeFeedback(submission.feedback || '');
-    setGradeModalVisible(true);
+    setGradeModal(true);
   };
 
-  const handleGrade = async () => {
-    if (!gradingSubmission || !selectedAssignment) return;
+  const handleGradeSubmit = async () => {
+    if (!gradeTarget || !selectedAssignment) return;
+
     const score = parseInt(gradeScore, 10);
     if (isNaN(score) || score < 0) {
       Alert.alert('Error', 'Please enter a valid score');
       return;
     }
 
-    setActionLoading(true);
     try {
+      setSubmittingGrade(true);
       const { error: err } = await assignmentService.gradeSubmission(
-        gradingSubmission.id,
+        gradeTarget.id,
         score,
         gradeFeedback.trim()
       );
 
-      if (err) Alert.alert('Error', err);
-      else {
+      if (err) {
+        Alert.alert('Error', err);
+      } else {
         setSubmissions((prev) =>
           prev.map((s) =>
-            s.id === gradingSubmission.id
+            s.id === gradeTarget.id
               ? { ...s, score, feedback: gradeFeedback.trim(), graded_at: new Date().toISOString() }
               : s
           )
         );
-        setGradeModalVisible(false);
+        setGradeModal(false);
       }
     } catch (e: any) {
       Alert.alert('Error', e?.message || 'Grading failed');
+    } finally {
+      setSubmittingGrade(false);
     }
-    setActionLoading(false);
   };
 
   const formatDate = (dateStr: string) => {
@@ -182,101 +188,106 @@ export default function LecturerSubmissions() {
       return new Date(dateStr).toLocaleDateString('en-US', {
         year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
       });
-    } catch { return dateStr; }
+    } catch {
+      return dateStr;
+    }
   };
 
-  // Step 1: Select Course
-  if (!selectedCourse) {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <View style={[styles.header, { backgroundColor: theme.primary }]}>
-          <Text style={styles.headerTitle}>Student Submissions</Text>
-          <Text style={styles.headerSubtitle}>Select a course to view submissions</Text>
-        </View>
+  const getStudentInitials = (submission: AssignmentSubmission) => {
+    const name = submission.student?.full_name;
+    if (name) {
+      return name.split(' ').map(n => n.charAt(0)).join('').toUpperCase().slice(0, 2);
+    }
+    return 'ST';
+  };
 
-        {error && (
-          <View style={[styles.errorBar, { backgroundColor: '#EF444420', borderColor: '#EF444440' }]}>
-            <Ionicons name="alert-circle" size={18} color="#EF4444" />
-            <Text style={[styles.errorText, { color: '#EF4444' }]}>{error}</Text>
-            <TouchableOpacity onPress={() => setError(null)}>
-              <Ionicons name="close" size={18} color={theme.textSecondary} />
-            </TouchableOpacity>
+  const getStudentName = (submission: AssignmentSubmission) => {
+    return submission.student?.full_name || `Student (${submission.student_id?.slice(0, 8) || 'unknown'})`;
+  };
+
+  return (
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: theme.primary }]}>
+        {screen === 'courses' && (
+          <View>
+            <Text style={styles.headerTitle}>Student Submissions</Text>
+            <Text style={styles.headerSubtitle}>Select a course to view submissions</Text>
           </View>
         )}
-
-        {loading ? (
-          <View style={styles.centerContent}>
-            <ActivityIndicator size="large" color={theme.primary} />
+        {screen === 'assignments' && selectedCourse && (
+          <View>
+            <TouchableOpacity style={styles.headerBack} onPress={goBackToCourses}>
+              <Ionicons name="arrow-back" size={22} color="#fff" />
+              <Text style={styles.headerBackText}>Courses</Text>
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>{selectedCourse.title}</Text>
+            <Text style={styles.headerSubtitle}>{assignments.length} assignment{assignments.length !== 1 ? 's' : ''}</Text>
           </View>
-        ) : (
-          <ScrollView
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} colors={[theme.primary]} />}
-          >
-            {courses.length === 0 ? (
-              <View style={[styles.emptyCard, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
-                <Ionicons name="book-outline" size={64} color={theme.textSecondary} style={{ opacity: 0.4 }} />
-                <Text style={[styles.emptyTitle, { color: theme.text }]}>No courses</Text>
-                <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
-                  You don't have any courses assigned yet.
-                </Text>
-              </View>
-            ) : (
-              courses.map((course) => (
-                <TouchableOpacity
-                  key={course.id}
-                  style={[styles.selectCard, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}
-                  onPress={() => loadAssignmentsForCourse(course)}
-                >
-                  <View style={[styles.selectIcon, { backgroundColor: theme.primary + '15' }]}>
-                    <Ionicons name="library-outline" size={24} color={theme.primary} />
-                  </View>
-                  <View style={styles.selectInfo}>
-                    <Text style={[styles.selectTitle, { color: theme.text }]}>{course.title}</Text>
-                    <Text style={[styles.selectMeta, { color: theme.textSecondary }]}>
-                      {course.code} · {course.semester} {course.year}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
-                </TouchableOpacity>
-              ))
-            )}
-          </ScrollView>
+        )}
+        {screen === 'submissions' && selectedAssignment && (
+          <View>
+            <TouchableOpacity style={styles.headerBack} onPress={goBackToAssignments}>
+              <Ionicons name="arrow-back" size={22} color="#fff" />
+              <Text style={styles.headerBackText}>Assignments</Text>
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>{selectedAssignment.title}</Text>
+            <Text style={styles.headerSubtitle}>{submissions.length} submission{submissions.length !== 1 ? 's' : ''}</Text>
+          </View>
         )}
       </View>
-    );
-  }
 
-  // Step 2: Select Assignment
-  if (!selectedAssignment) {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <View style={[styles.header, { backgroundColor: theme.primary }]}>
-          <TouchableOpacity style={styles.headerBack} onPress={backToCourses}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
-            <Text style={styles.headerBackText}>Courses</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{selectedCourse.title}</Text>
-          <Text style={styles.headerSubtitle}>
-            {assignments.length} assignment{assignments.length !== 1 ? 's' : ''}
-          </Text>
+      {/* Loading */}
+      {loading && (
+        <View style={styles.centerContent}>
+          <ActivityIndicator size="large" color={theme.primary} />
         </View>
+      )}
 
-        {error && (
-          <View style={[styles.errorBar, { backgroundColor: '#EF444420', borderColor: '#EF444440' }]}>
-            <Ionicons name="alert-circle" size={18} color="#EF4444" />
-            <Text style={[styles.errorText, { color: '#EF4444' }]}>{error}</Text>
-            <TouchableOpacity onPress={() => setError(null)}>
-              <Ionicons name="close" size={18} color={theme.textSecondary} />
-            </TouchableOpacity>
-          </View>
-        )}
-
+      {/* Courses Screen */}
+      {!loading && screen === 'courses' && (
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} colors={[theme.primary]} />}
+        >
+          {courses.length === 0 ? (
+            <View style={[styles.emptyCard, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
+              <Ionicons name="book-outline" size={64} color={theme.textSecondary} style={{ opacity: 0.4 }} />
+              <Text style={[styles.emptyTitle, { color: theme.text }]}>No courses</Text>
+              <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
+                You don't have any courses assigned yet.
+              </Text>
+            </View>
+          ) : (
+            courses.map((course) => (
+              <TouchableOpacity
+                key={course.id}
+                style={[styles.selectCard, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}
+                onPress={() => loadAssignments(course)}
+              >
+                <View style={[styles.selectIcon, { backgroundColor: theme.primary + '15' }]}>
+                  <Ionicons name="library-outline" size={24} color={theme.primary} />
+                </View>
+                <View style={styles.selectInfo}>
+                  <Text style={[styles.selectTitle, { color: theme.text }]}>{course.title}</Text>
+                  <Text style={[styles.selectMeta, { color: theme.textSecondary }]}>
+                    {course.code} · {course.semester} {course.year}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+              </TouchableOpacity>
+            ))
+          )}
+        </ScrollView>
+      )}
+
+      {/* Assignments Screen */}
+      {!loading && screen === 'assignments' && (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} colors={[theme.primary]} />}
         >
           {assignments.length === 0 ? (
             <View style={[styles.emptyCard, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
@@ -307,39 +318,10 @@ export default function LecturerSubmissions() {
             ))
           )}
         </ScrollView>
-      </View>
-    );
-  }
-
-  // Step 3: View Submissions
-  return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={[styles.header, { backgroundColor: theme.primary }]}>
-        <TouchableOpacity style={styles.headerBack} onPress={backToAssignments}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
-          <Text style={styles.headerBackText}>Assignments</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{selectedAssignment.title}</Text>
-        <Text style={styles.headerSubtitle}>
-          {submissions.length} submission{submissions.length !== 1 ? 's' : ''}
-        </Text>
-      </View>
-
-      {error && (
-        <View style={[styles.errorBar, { backgroundColor: '#EF444420', borderColor: '#EF444440' }]}>
-          <Ionicons name="alert-circle" size={18} color="#EF4444" />
-          <Text style={[styles.errorText, { color: '#EF4444' }]}>{error}</Text>
-          <TouchableOpacity onPress={() => setError(null)}>
-            <Ionicons name="close" size={18} color={theme.textSecondary} />
-          </TouchableOpacity>
-        </View>
       )}
 
-      {submissionsLoading ? (
-        <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color={theme.primary} />
-        </View>
-      ) : (
+      {/* Submissions Screen */}
+      {!loading && screen === 'submissions' && (
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
@@ -354,63 +336,87 @@ export default function LecturerSubmissions() {
               </Text>
             </View>
           ) : (
-            submissions.map((submission) => (
-              <View key={submission.id} style={[styles.submissionCard, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
-                <View style={styles.submissionHeader}>
-                  <View style={[styles.avatar, { backgroundColor: theme.primary + '20' }]}>
-                    <Ionicons name="person-outline" size={22} color={theme.primary} />
-                  </View>
-                  <View style={styles.submissionInfo}>
-                    <Text style={[styles.submissionDate, { color: theme.textSecondary }]}>
-                      Submitted {formatDate(submission.submitted_at)}
-                    </Text>
-                  </View>
-                  {submission.score !== null && submission.score !== undefined ? (
-                    <View style={[styles.gradedBadge, { backgroundColor: '#10B98120' }]}>
-                      <Text style={styles.gradedText}>{submission.score}/{selectedAssignment.max_score}</Text>
+            submissions.map((submission) => {
+              const isGraded = submission.score != null;
+              const maxScore = selectedAssignment?.max_score || 100;
+
+              return (
+                <View key={submission.id} style={[styles.submissionCard, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
+                  <View style={styles.submissionHeader}>
+                    <View style={[styles.avatar, { backgroundColor: theme.primary + '20' }]}>
+                      <Text style={[styles.avatarText, { color: theme.primary }]}>
+                        {getStudentInitials(submission)}
+                      </Text>
                     </View>
+                    <View style={styles.submissionInfo}>
+                      <Text style={[styles.submissionName, { color: theme.text }]}>
+                        {getStudentName(submission)}
+                      </Text>
+                      <Text style={[styles.submissionDate, { color: theme.textSecondary }]}>
+                        Submitted {formatDate(submission.submitted_at)}
+                      </Text>
+                    </View>
+                    {isGraded ? (
+                      <View style={[styles.gradedBadge, { backgroundColor: '#10B98120' }]}>
+                        <Text style={styles.gradedText}>{submission.score}/{maxScore}</Text>
+                      </View>
+                    ) : (
+                      <View style={[styles.ungradedBadge, { backgroundColor: '#F59E0B20' }]}>
+                        <Text style={styles.ungradedText}>Ungraded</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {submission.submission_text ? (
+                    <View style={[styles.textCard, { backgroundColor: theme.background }]}>
+                      <Text style={[styles.textContent, { color: theme.text }]}>{submission.submission_text}</Text>
+                    </View>
+                  ) : null}
+
+                  {isGraded ? (
+                    <TouchableOpacity
+                      style={[styles.actionBtn, { backgroundColor: theme.primary + '15' }]}
+                      onPress={() => openGradeModal(submission)}
+                    >
+                      <Ionicons name="create-outline" size={16} color={theme.primary} />
+                      <Text style={[styles.actionBtnText, { color: theme.primary }]}>Update Grade</Text>
+                    </TouchableOpacity>
                   ) : (
-                    <View style={[styles.ungradedBadge, { backgroundColor: '#F59E0B20' }]}>
-                      <Text style={styles.ungradedText}>Ungraded</Text>
-                    </View>
+                    <TouchableOpacity
+                      style={[styles.actionBtn, styles.gradeBtn, { backgroundColor: theme.primary }]}
+                      onPress={() => openGradeModal(submission)}
+                    >
+                      <Ionicons name="ribbon-outline" size={16} color="#fff" />
+                      <Text style={[styles.actionBtnText, { color: '#fff' }]}>Grade</Text>
+                    </TouchableOpacity>
                   )}
                 </View>
-
-                {submission.submission_text && (
-                  <View style={[styles.textCard, { backgroundColor: theme.background }]}>
-                    <Text style={[styles.textContent, { color: theme.text }]}>{submission.submission_text}</Text>
-                  </View>
-                )}
-
-                {submission.score === null || submission.score === undefined ? (
-                  <TouchableOpacity style={[styles.gradeBtn, { backgroundColor: theme.primary }]} onPress={() => openGradeModal(submission)}>
-                    <Ionicons name="ribbon-outline" size={16} color="#fff" />
-                    <Text style={styles.gradeBtnText}>Grade</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity style={[styles.regradeBtn, { backgroundColor: theme.primary + '15' }]} onPress={() => openGradeModal(submission)}>
-                    <Ionicons name="create-outline" size={16} color={theme.primary} />
-                    <Text style={[styles.regradeText, { color: theme.primary }]}>Update Grade</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            ))
+              );
+            })
           )}
         </ScrollView>
       )}
 
       {/* Grade Modal */}
-      <Modal visible={gradeModalVisible} animationType="fade" transparent onRequestClose={() => setGradeModalVisible(false)}>
+      <Modal visible={gradeModal} animationType="fade" transparent onRequestClose={() => setGradeModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.cardBackground }]}>
             <View style={styles.modalHeaderRow}>
               <Text style={[styles.modalTitle, { color: theme.text }]}>Grade Submission</Text>
-              <TouchableOpacity onPress={() => setGradeModalVisible(false)}>
+              <TouchableOpacity onPress={() => setGradeModal(false)}>
                 <Ionicons name="close" size={24} color={theme.text} />
               </TouchableOpacity>
             </View>
 
-            <Text style={[styles.modalLabel, { color: theme.textSecondary }]}>Score (max: {selectedAssignment.max_score})</Text>
+            {gradeTarget && (
+              <Text style={[styles.modalStudent, { color: theme.textSecondary }]}>
+                {getStudentName(gradeTarget)}
+              </Text>
+            )}
+
+            <Text style={[styles.modalLabel, { color: theme.textSecondary, marginTop: 12 }]}>
+              Score (max: {selectedAssignment?.max_score || 100})
+            </Text>
             <TextInput
               style={[styles.gradeInput, { borderColor: theme.border, color: theme.text, backgroundColor: theme.background }]}
               placeholder="Enter score"
@@ -432,18 +438,20 @@ export default function LecturerSubmissions() {
               textAlignVertical="top"
             />
 
-            <TouchableOpacity style={[styles.modalSubmit, { backgroundColor: theme.primary, marginTop: 20, opacity: actionLoading ? 0.6 : 1 }]} onPress={handleGrade} disabled={actionLoading}>
-              {actionLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalSubmitText}>Submit Grade</Text>}
+            <TouchableOpacity
+              style={[styles.modalSubmitBtn, { backgroundColor: theme.primary, opacity: submittingGrade ? 0.6 : 1 }]}
+              onPress={handleGradeSubmit}
+              disabled={submittingGrade}
+            >
+              {submittingGrade ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.modalSubmitText}>Submit Grade</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
-
-      {actionLoading && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={theme.primary} />
-        </View>
-      )}
     </View>
   );
 }
@@ -455,11 +463,9 @@ const styles = StyleSheet.create({
   headerBackText: { color: 'rgba(255,255,255,0.8)', fontSize: 15, fontWeight: '600' },
   headerTitle: { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 4 },
   headerSubtitle: { fontSize: 14, color: 'rgba(255,255,255,0.75)', fontWeight: '500' },
-  errorBar: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 8, padding: 10, borderRadius: 10, borderWidth: 1, gap: 8 },
-  errorText: { flex: 1, fontSize: 13, fontWeight: '500' },
-  scrollView: { flex: 1 },
-  scrollContent: { padding: 16 },
   centerContent: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  scrollView: { flex: 1 },
+  scrollContent: { padding: 16, paddingBottom: 40 },
 
   selectCard: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 14, borderWidth: 1, marginBottom: 10, gap: 12 },
   selectIcon: { width: 48, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
@@ -474,7 +480,9 @@ const styles = StyleSheet.create({
   submissionCard: { padding: 16, borderRadius: 16, borderWidth: 1, marginBottom: 12 },
   submissionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 10 },
   avatar: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  avatarText: { fontSize: 16, fontWeight: '700' },
   submissionInfo: { flex: 1 },
+  submissionName: { fontSize: 15, fontWeight: '600', marginBottom: 2 },
   submissionDate: { fontSize: 12, fontWeight: '500' },
   gradedBadge: { paddingHorizontal: 14, paddingVertical: 5, borderRadius: 10 },
   gradedText: { fontSize: 14, fontWeight: '800', color: '#10B981' },
@@ -484,19 +492,18 @@ const styles = StyleSheet.create({
   textCard: { padding: 14, borderRadius: 12, marginBottom: 12 },
   textContent: { fontSize: 14, lineHeight: 20 },
 
-  gradeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 12, gap: 6 },
-  gradeBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  regradeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 12, gap: 6 },
-  regradeText: { fontSize: 13, fontWeight: '700' },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 12, gap: 6 },
+  gradeBtn: { paddingVertical: 12 },
+  actionBtnText: { fontSize: 13, fontWeight: '700' },
 
   modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', padding: 24 },
   modalContent: { width: '100%', borderRadius: 20, padding: 24 },
-  modalHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  modalHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   modalTitle: { fontSize: 20, fontWeight: '700' },
+  modalStudent: { fontSize: 14, fontWeight: '500' },
   modalLabel: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
   gradeInput: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 18, fontWeight: '700' },
   feedbackInput: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, minHeight: 80, textAlignVertical: 'top' },
-  modalSubmit: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, gap: 8 },
+  modalSubmitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, marginTop: 20, gap: 8 },
   modalSubmitText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  loadingOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' },
 });
