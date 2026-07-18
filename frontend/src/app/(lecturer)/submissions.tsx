@@ -2,8 +2,11 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
 import { assignmentService } from '@/services/assignments';
 import { courseService } from '@/services/courses';
+import { getFileUrl } from '@/services/supabase';
 import { Assignment, AssignmentSubmission, Course } from '@/types';
 import { Ionicons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -180,6 +183,31 @@ export default function LecturerSubmissions() {
       Alert.alert('Error', e?.message || 'Grading failed');
     } finally {
       setSubmittingGrade(false);
+    }
+  };
+
+  const downloadSubmissionFile = async (url: string, fileName: string) => {
+    const absoluteUrl = getFileUrl(url);
+    if (!absoluteUrl) {
+      Alert.alert('Error', 'Invalid file URL');
+      return;
+    }
+
+    try {
+      const localUri = FileSystem.cacheDirectory + fileName;
+      const downloadResult = await FileSystem.downloadAsync(absoluteUrl, localUri);
+
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (isAvailable) {
+        await Sharing.shareAsync(downloadResult.uri, {
+          mimeType: 'application/octet-stream',
+          dialogTitle: fileName,
+        });
+      } else {
+        Alert.alert('Download Complete', `File saved to: ${downloadResult.uri}`);
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Could not download the file');
     }
   };
 
@@ -373,6 +401,19 @@ export default function LecturerSubmissions() {
                     </View>
                   ) : null}
 
+                  {submission.submission_file_url ? (
+                    <TouchableOpacity
+                      style={[styles.fileDownloadBtn, { backgroundColor: theme.primary + '10', borderColor: theme.primary + '20' }]}
+                      onPress={() => downloadSubmissionFile(submission.submission_file_url!, submission.submission_file_name || 'submission_file')}
+                    >
+                      <Ionicons name="document-outline" size={18} color={theme.primary} />
+                      <Text style={[styles.fileDownloadText, { color: theme.primary }]} numberOfLines={1}>
+                        {submission.submission_file_name || 'Download Submitted File'}
+                      </Text>
+                      <Ionicons name="download-outline" size={18} color={theme.primary} />
+                    </TouchableOpacity>
+                  ) : null}
+
                   {isGraded ? (
                     <TouchableOpacity
                       style={[styles.actionBtn, { backgroundColor: theme.primary + '15' }]}
@@ -495,6 +536,8 @@ const styles = StyleSheet.create({
   actionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 12, gap: 6 },
   gradeBtn: { paddingVertical: 12 },
   actionBtnText: { fontSize: 13, fontWeight: '700' },
+  fileDownloadBtn: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 10, gap: 8 },
+  fileDownloadText: { flex: 1, fontSize: 13, fontWeight: '600' },
 
   modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', padding: 24 },
   modalContent: { width: '100%', borderRadius: 20, padding: 24 },

@@ -2,15 +2,17 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
 import { assignmentService } from '@/services/assignments';
 import { courseService } from '@/services/courses';
+import { getFileUrl } from '@/services/supabase';
 import { Assignment, AssignmentSubmission, Course, CourseMaterial } from '@/types';
 import { Ionicons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Animated,
-  Linking,
   Modal,
   RefreshControl,
   ScrollView,
@@ -38,6 +40,9 @@ export default function StudentCourseDetailsScreen() {
   const [activeTab, setActiveTab] = useState<TabType>('materials');
   const [message, setMessage] = useState<string | null>(null);
 
+  // Download state
+  const [downloadingFile, setDownloadingFile] = useState<string | null>(null);
+
   // Submission modal
   const [submitModalVisible, setSubmitModalVisible] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
@@ -47,11 +52,7 @@ export default function StudentCourseDetailsScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 400,
-      useNativeDriver: true,
-    }).start();
+    Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
   }, []);
 
   const loadData = useCallback(async () => {
@@ -102,10 +103,35 @@ export default function StudentCourseDetailsScreen() {
     setRefreshing(false);
   };
 
-  const openMaterial = (material: CourseMaterial) => {
-    Linking.openURL(material.file_url).catch(() =>
-      Alert.alert('Error', 'Could not open the file')
-    );
+  const downloadAndOpenFile = async (url: string, fileName: string) => {
+    const absoluteUrl = getFileUrl(url);
+    if (!absoluteUrl) {
+      Alert.alert('Error', 'Invalid file URL');
+      return;
+    }
+
+    setDownloadingFile(fileName);
+    try {
+      // Download the file to a temporary cache location
+      const localUri = FileSystem.cacheDirectory + fileName;
+      const downloadResult = await FileSystem.downloadAsync(absoluteUrl, localUri);
+
+      // Try to share/open the file using expo-sharing
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (isAvailable) {
+        await Sharing.shareAsync(downloadResult.uri, {
+          mimeType: 'application/octet-stream',
+          dialogTitle: fileName,
+        });
+      } else {
+        // Fallback: just show the download path
+        Alert.alert('Download Complete', `File saved to: ${downloadResult.uri}`);
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Could not download the file');
+    } finally {
+      setDownloadingFile(null);
+    }
   };
 
   const openSubmitModal = (assignment: Assignment) => {
@@ -143,18 +169,14 @@ export default function StudentCourseDetailsScreen() {
     const due = new Date(dueDate);
     const diff = due.getTime() - now.getTime();
     const daysLeft = diff / (1000 * 60 * 60 * 24);
-    if (diff < 0) return '#EF4444'; // Overdue
-    if (daysLeft <= 2) return '#F59E0B'; // Due soon
-    return '#10B981'; // On track
+    if (diff < 0) return '#EF4444';
+    if (daysLeft <= 2) return '#F59E0B';
+    return '#10B981';
   };
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+      year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
     });
   };
 
@@ -273,15 +295,20 @@ export default function StudentCourseDetailsScreen() {
                 </Text>
               </View>
             ) : (
-              materials.map((material, index) => (
+              materials.map((material) => (
                 <Animated.View key={material.id} style={{ opacity: fadeAnim }}>
                   <TouchableOpacity
                     style={[styles.materialCard, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}
-                    onPress={() => openMaterial(material)}
+                    onPress={() => downloadAndOpenFile(material.file_url, material.file_name)}
                     activeOpacity={0.7}
+                    disabled={downloadingFile === material.file_name}
                   >
                     <View style={[styles.fileIconContainer, { backgroundColor: theme.primary + '15' }]}>
-                      <Ionicons name={getFileIcon(material.file_type) as any} size={24} color={theme.primary} />
+                      {downloadingFile === material.file_name ? (
+                        <ActivityIndicator size="small" color={theme.primary} />
+                      ) : (
+                        <Ionicons name={getFileIcon(material.file_type) as any} size={24} color={theme.primary} />
+                      )}
                     </View>
                     <View style={styles.materialInfo}>
                       <Text style={[styles.materialTitle, { color: theme.text }]} numberOfLines={2}>{material.title}</Text>
@@ -327,7 +354,6 @@ export default function StudentCourseDetailsScreen() {
                 return (
                   <Animated.View key={assignment.id} style={{ opacity: fadeAnim }}>
                     <View style={[styles.assignmentCard, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
-                      {/* Status indicator */}
                       <View style={[styles.statusBar, { backgroundColor: isSubmitted ? '#10B981' : statusColor }]} />
 
                       <View style={styles.assignmentContent}>
@@ -399,6 +425,20 @@ export default function StudentCourseDetailsScreen() {
                               Submitted on {formatDate(submission.submitted_at)}
                             </Text>
                           </View>
+                        )}
+
+                        {submission?.submission_file_url && (
+                          <TouchableOpacity
+                            style={[styles.viewFileBtn, { backgroundColor: theme.primary + '10', borderColor: theme.primary + '20' }]}
+                            onPress={() => downloadAndOpenFile(submission.submission_file_url!, submission.submission_file_name || 'submission')}
+                            disabled={downloadingFile === (submission.submission_file_name || 'submission')}
+                          >
+                            <Ionicons name="document-outline" size={16} color={theme.primary} />
+                            <Text style={[styles.viewFileText, { color: theme.primary }]}>
+                              {downloadingFile === (submission.submission_file_name || 'submission') ? 'Downloading...' : 'View Submitted File'}
+                            </Text>
+                            <Ionicons name="download-outline" size={16} color={theme.primary} />
+                          </TouchableOpacity>
                         )}
                       </View>
                     </View>
@@ -472,45 +512,29 @@ const styles = StyleSheet.create({
   errorTitle: { fontSize: 20, fontWeight: '700', marginTop: 12, marginBottom: 16 },
   backBtn: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 10 },
   backBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
-
-  // Header
   header: { paddingTop: 50, paddingBottom: 20, paddingHorizontal: 16 },
   headerBack: { marginBottom: 12 },
   headerContent: {},
   headerCode: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.8)', marginBottom: 4, letterSpacing: 1 },
   headerTitle: { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 4 },
   headerMeta: { fontSize: 13, color: 'rgba(255,255,255,0.75)', fontWeight: '500' },
-
-  // Tabs
   tabRow: { flexDirection: 'row', paddingHorizontal: 16, borderBottomWidth: 1 },
   tab: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, gap: 6 },
   tabText: { fontSize: 14, fontWeight: '600' },
   tabCount: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   tabCountText: { fontSize: 11, fontWeight: '700' },
-
-  // Message
   messageBar: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 8, padding: 10, borderRadius: 10, borderWidth: 1, gap: 8 },
   messageText: { flex: 1, fontSize: 13, fontWeight: '500' },
-
-  // Content
   content: { flex: 1 },
   contentContainer: { padding: 16, paddingBottom: 40 },
-
-  // Info Card
   infoCard: { padding: 16, borderRadius: 14, borderWidth: 1, marginBottom: 20 },
   infoLabel: { fontSize: 12, fontWeight: '500', marginBottom: 4 },
   infoValue: { fontSize: 15, fontWeight: '600', marginBottom: 8 },
   divider: { height: 1, marginVertical: 10, opacity: 0.5 },
-
-  // Section
   sectionTitle: { fontSize: 18, fontWeight: '700', marginBottom: 12 },
-
-  // Empty
   emptyCard: { padding: 32, borderRadius: 14, borderWidth: 1, alignItems: 'center', marginBottom: 16 },
   emptyTitle: { fontSize: 16, fontWeight: '600', marginTop: 12 },
   emptySubtitle: { fontSize: 13, textAlign: 'center', marginTop: 6, lineHeight: 18 },
-
-  // Materials
   materialCard: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 14, borderWidth: 1, marginBottom: 10, gap: 12 },
   fileIconContainer: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   materialInfo: { flex: 1 },
@@ -519,8 +543,6 @@ const styles = StyleSheet.create({
   materialMeta: { flexDirection: 'row', gap: 8 },
   materialFile: { fontSize: 11, fontWeight: '500' },
   materialSize: { fontSize: 11, fontWeight: '500' },
-
-  // Assignments
   assignmentCard: { borderRadius: 14, borderWidth: 1, marginBottom: 14, overflow: 'hidden', flexDirection: 'row' },
   statusBar: { width: 4 },
   assignmentContent: { flex: 1, padding: 14 },
@@ -532,21 +554,17 @@ const styles = StyleSheet.create({
   assignmentMeta: { flexDirection: 'row', gap: 16, marginBottom: 10 },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaText: { fontSize: 12, fontWeight: '500' },
-
-  // Grade
   gradeCard: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 10, gap: 10 },
   gradeInfo: { flex: 1 },
   gradeLabel: { fontSize: 11, fontWeight: '500' },
   gradeValue: { fontSize: 16, fontWeight: '800' },
   gradeFeedback: { fontSize: 12, fontStyle: 'italic', flex: 1 },
-
-  // Submit
   submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 10, gap: 6 },
   submitBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   submittedInfo: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 10, borderWidth: 1, gap: 6 },
   submittedInfoText: { fontSize: 12, fontWeight: '600' },
-
-  // Modal
+  viewFileBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 10, borderWidth: 1, gap: 6, marginTop: 8 },
+  viewFileText: { fontSize: 13, fontWeight: '600', flex: 1, textAlign: 'center' },
   modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', padding: 24 },
   modalContent: { width: '100%', borderRadius: 20, padding: 24, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
