@@ -57,6 +57,14 @@ export default function StudentLayout() {
           ),
         }}
       />
+      {/* ✅ Add this to hide the course/[id] route from the tab bar */}
+      <Tabs.Screen
+        name="course/[id]"
+        options={{
+          href: null, // This hides it from the tab bar
+          title: 'Course Details',
+        }}
+      />
     </Tabs>
   );
 }

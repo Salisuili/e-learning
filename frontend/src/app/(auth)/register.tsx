@@ -11,19 +11,6 @@ const DEPARTMENTS = [
   'Computer Science',
   'Computer Engineering',
   'Cyber Security',
-  'Information Technology',
-  'Software Engineering',
-  'Data Science',
-  'Electrical Engineering',
-  'Mechanical Engineering',
-  'Civil Engineering',
-  'Business Administration',
-  'Accounting',
-  'Economics',
-  'Mathematics',
-  'Physics',
-  'Chemistry',
-  'Biology',
 ];
 
 export default function RegisterScreen() {
@@ -59,6 +46,20 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     if (!fullName || !email || !password || !department) {
       Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+
+    // Check if email is just numbers or doesn't have valid characters
+    const hasValidFormat = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
+    if (!hasValidFormat) {
+      Alert.alert('Error', 'Please enter a valid email address (e.g., name@domain.com)');
       return;
     }
 
@@ -180,7 +181,7 @@ export default function RegisterScreen() {
                 placeholder="Enter your email"
                 placeholderTextColor={theme.textSecondary}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(text) => setEmail(text.trim())}
                 editable={!uploading}
                 keyboardType="email-address"
                 autoCapitalize="none"

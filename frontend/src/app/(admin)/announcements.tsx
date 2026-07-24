@@ -304,6 +304,7 @@ export default function AdminAnnouncements() {
 
       {/* Create/Edit Modal */}
       <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalVisible(false)}>
+        <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}></View>
         <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
             <TouchableOpacity onPress={() => setModalVisible(false)}>

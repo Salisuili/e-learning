@@ -57,6 +57,14 @@ export default function LecturerLayout() {
           ),
         }}
       />
+      {/* ✅ Hide course/[id] route from tab bar */}
+      <Tabs.Screen
+        name="course/[id]"
+        options={{
+          href: null,
+          title: 'Course Details',
+        }}
+      />
     </Tabs>
   );
 }

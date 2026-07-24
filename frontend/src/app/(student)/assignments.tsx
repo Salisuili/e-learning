@@ -2,6 +2,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
 import { assignmentService } from '@/services/assignments';
 import { courseService } from '@/services/courses';
+import { api } from '@/services/supabase';
 import { Assignment, AssignmentSubmission, Course } from '@/types';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
@@ -49,7 +50,6 @@ export default function StudentAssignments() {
     setMessage(null);
 
     try {
-      // Get all courses the student is enrolled in
       const { courses } = await courseService.getStudentCourses(user.id);
       const allAssignments: (Assignment & { course?: Course })[] = [];
       const subMap: Record<string, AssignmentSubmission> = {};
@@ -61,7 +61,6 @@ export default function StudentAssignments() {
             for (const assignment of courseAssignments) {
               allAssignments.push({ ...assignment, course });
 
-              // Get submission status
               const { submission } = await assignmentService.getStudentSubmission(assignment.id, user.id);
               if (submission) {
                 subMap[assignment.id] = submission;
@@ -71,7 +70,6 @@ export default function StudentAssignments() {
         }
       }
 
-      // Sort by due date (soonest first)
       allAssignments.sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
       setAssignments(allAssignments);
       setSubmissions(subMap);
@@ -122,18 +120,30 @@ export default function StudentAssignments() {
     }
 
     setSubmitting(true);
-    const { submission, error } = await assignmentService.submitAssignment(
-      selectedAssignment.id,
-      user.id,
-      { submission_text: submissionText.trim(), submission_file: submissionFile || undefined }
-    );
+    try {
+      const formData = new FormData();
+      formData.append('submission_text', submissionText.trim());
 
-    if (error) {
-      Alert.alert('Error', error);
-    } else if (submission) {
-      setSubmissions((prev) => ({ ...prev, [selectedAssignment.id]: submission }));
-      setSubmitModalVisible(false);
-      Alert.alert('Success', 'Assignment submitted successfully');
+      if (submissionFile) {
+        formData.append('submission', {
+          uri: submissionFile.uri,
+          name: submissionFile.name,
+          type: submissionFile.mimeType || 'application/octet-stream',
+        } as any);
+      }
+
+      const response = await api.upload('POST', `/assignments/${selectedAssignment.id}/submit`, formData);
+      
+      if (response.error) {
+        Alert.alert('Error', response.error);
+      } else if (response.submission) {
+        setSubmissions((prev) => ({ ...prev, [selectedAssignment.id]: response.submission }));
+        setSubmitModalVisible(false);
+        Alert.alert('Success', 'Assignment submitted successfully');
+        await loadAssignments();
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error?.message || 'Failed to submit assignment');
     }
     setSubmitting(false);
   };
@@ -155,7 +165,6 @@ export default function StudentAssignments() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Header */}
       <View style={[styles.header, { backgroundColor: theme.primary }]}>
         <Text style={styles.headerTitle}>My Assignments</Text>
         <Text style={styles.headerSubtitle}>
@@ -163,7 +172,6 @@ export default function StudentAssignments() {
         </Text>
       </View>
 
-      {/* Message */}
       {message && (
         <View style={[styles.messageBar, { backgroundColor: theme.error + '20', borderColor: theme.error + '40' }]}>
           <Ionicons name="alert-circle" size={18} color={theme.error} />
@@ -174,7 +182,6 @@ export default function StudentAssignments() {
         </View>
       )}
 
-      {/* Content */}
       {loading ? (
         <View style={styles.centerContent}>
           <ActivityIndicator size="large" color={theme.primary} />
@@ -195,7 +202,7 @@ export default function StudentAssignments() {
               </Text>
             </View>
           ) : (
-            assignments.map((assignment, index) => {
+            assignments.map((assignment) => {
               const submission = submissions[assignment.id];
               const statusColor = getStatusColor(assignment.due_date);
               const isOverdue = new Date(assignment.due_date).getTime() < Date.now();
@@ -204,7 +211,6 @@ export default function StudentAssignments() {
               return (
                 <Animated.View key={assignment.id} style={{ opacity: fadeAnim }}>
                   <View style={[styles.card, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
-                    {/* Course badge */}
                     {assignment.course && (
                       <View style={[styles.courseBadge, { backgroundColor: theme.primary + '12' }]}>
                         <Text style={[styles.courseBadgeText, { color: theme.primary }]}>
@@ -213,7 +219,6 @@ export default function StudentAssignments() {
                       </View>
                     )}
 
-                    {/* Header */}
                     <View style={styles.cardHeader}>
                       <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={2}>
                         {assignment.title}
@@ -226,14 +231,12 @@ export default function StudentAssignments() {
                       )}
                     </View>
 
-                    {/* Description */}
                     {assignment.description && (
                       <Text style={[styles.cardDesc, { color: theme.textSecondary }]} numberOfLines={2}>
                         {assignment.description}
                       </Text>
                     )}
 
-                    {/* Meta */}
                     <View style={styles.metaRow}>
                       <View style={styles.metaItem}>
                         <Ionicons name="calendar-outline" size={14} color={statusColor} />
@@ -250,7 +253,6 @@ export default function StudentAssignments() {
                       </View>
                     </View>
 
-                    {/* Grade if submitted and graded */}
                     {submission && submission.score !== null && submission.score !== undefined && (
                       <View style={[styles.gradeCard, { backgroundColor: theme.primary + '10', borderColor: theme.primary + '20' }]}>
                         <Ionicons name="ribbon-outline" size={20} color={theme.primary} />
@@ -267,7 +269,6 @@ export default function StudentAssignments() {
                       </View>
                     )}
 
-                    {/* Action */}
                     {!isSubmitted && !isOverdue && (
                       <TouchableOpacity
                         style={[styles.submitBtn, { backgroundColor: theme.primary }]}
@@ -295,7 +296,6 @@ export default function StudentAssignments() {
         </ScrollView>
       )}
 
-      {/* Submit Modal */}
       <Modal visible={submitModalVisible} animationType="fade" transparent onRequestClose={() => setSubmitModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.cardBackground }]}>
@@ -325,7 +325,6 @@ export default function StudentAssignments() {
                   textAlignVertical="top"
                 />
 
-                {/* File Upload */}
                 <TouchableOpacity
                   style={[styles.filePickBtn, { borderColor: theme.border, backgroundColor: submissionFile ? theme.success + '10' : theme.cardBackground }]}
                   onPress={pickSubmissionFile}

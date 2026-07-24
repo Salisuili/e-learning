@@ -13,7 +13,7 @@ export default function HomeScreen() {
         <View style={[styles.glowBall, { backgroundColor: theme.primary, opacity: 0.15 }]} />
         
         <View style={styles.brandContainer}>
-          <Text style={[styles.superTitle, { color: theme.primary }]}>IYA ABUBAKAR COMPUTER CENTER</Text>
+          <Text style={[styles.superTitle, { color: theme.primary }]}>IYA ABUBAKAR INSTITUTE OF ICT ABU ZARIA</Text>
           <Text style={[styles.mainTitle, { color: theme.text }]}>E-Learning Portal</Text>
           <View style={[styles.divider, { backgroundColor: theme.primary }]} />
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
@@ -85,10 +85,10 @@ export default function HomeScreen() {
       {/* Project Credits Footer */}
       <View style={styles.footer}>
         <Text style={[styles.footerText, { color: theme.textSecondary }]}>
-          Developed by <Text style={[styles.boldText, { color: theme.text }]}>Group 10</Text>
+          Developed by <Text style={[styles.boldText, { color: theme.text }]}>Group 11</Text>
         </Text>
         <Text style={[styles.subFooterText, { color: theme.textSecondary }]}>
-          Final Year Project Group | Iya Abubakar Computer Center
+          Final Year Project Group | Iya Abubakar Institute of ICT ABU Zaria 
         </Text>
       </View>
     </ScrollView>
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   superTitle: {
-    fontSize: 12,
+    fontSize: 20,
     fontWeight: '800',
     letterSpacing: 2,
     marginBottom: 12,

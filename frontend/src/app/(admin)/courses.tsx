@@ -18,6 +18,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type SortField = 'title' | 'code' | 'department' | 'credits' | 'created_at';
 type SortOrder = 'asc' | 'desc';
@@ -35,7 +36,8 @@ interface CourseForm {
   session: string;
 }
 
-const LEVELS = ['100', '200', '300', '400', '500', '600', '700'];
+// ✅ Updated: Added DIP I and DIP II
+const LEVELS = ['DIP I', 'DIP II', '100', '200', '300', '400', '500', '600', '700'];
 
 const INITIAL_FORM: CourseForm = {
   code: '',
@@ -269,6 +271,10 @@ export default function AdminCourses() {
     }
     if (!form.year || isNaN(parseInt(form.year, 10))) {
       setFormErrors('Valid year is required');
+      return false;
+    }
+    if (!form.level) {
+      setFormErrors('Level is required');
       return false;
     }
     return true;
@@ -525,7 +531,7 @@ export default function AdminCourses() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
       <View style={[styles.headerGradient, { backgroundColor: theme.primary }]}>
         <Animated.View
@@ -787,20 +793,17 @@ export default function AdminCourses() {
         </View>
       )}
 
-      {/* Create/Edit Modal */}
+      {/* ✅ FIXED: Create/Edit Modal with SafeArea padding */}
       <Modal
         visible={modalVisible}
         animationType="slide"
         presentationStyle="pageSheet"
         onRequestClose={() => setModalVisible(false)}
       >
-        <View
-          style={[
-            styles.modalContainer,
-            { backgroundColor: theme.background },
-          ]}
-        >
-          {/* Modal Header */}
+        {/* ✅ Added SafeAreaView inside Modal with themed background */}
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: theme.background }]}>
+          
+          <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}></View>{/* Modal Header with padding for status bar */}
           <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
             <TouchableOpacity onPress={() => setModalVisible(false)}>
               <Ionicons name="close" size={24} color={theme.text} />
@@ -1034,7 +1037,7 @@ export default function AdminCourses() {
               )}
             </View>
 
-            {/* Credits & Semester Row */}
+            {/* Credits & Year Row */}
             <View style={styles.formRow}>
               <View style={[styles.formGroup, { flex: 1 }]}>
                 <Text style={[styles.formLabel, { color: theme.text }]}>
@@ -1116,8 +1119,54 @@ export default function AdminCourses() {
                 ))}
               </View>
             </View>
+
+            {/* ✅ NEW: Level */}
+            <View style={styles.formGroup}>
+              <Text style={[styles.formLabel, { color: theme.text }]}>
+                Level *
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.pickerScroll}
+              >
+                {LEVELS.map((level) => (
+                  <TouchableOpacity
+                    key={level}
+                    style={[
+                      styles.pickerChip,
+                      {
+                        backgroundColor:
+                          form.level === level
+                            ? theme.primary + '20'
+                            : theme.backgroundElement,
+                        borderColor:
+                          form.level === level
+                            ? theme.primary
+                            : theme.border,
+                      },
+                    ]}
+                    onPress={() => setForm({ ...form, level: level })}
+                  >
+                    <Text
+                      style={[
+                        styles.pickerChipText,
+                        {
+                          color:
+                            form.level === level
+                              ? theme.primary
+                              : theme.textSecondary,
+                        },
+                      ]}
+                    >
+                      {level}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
           </ScrollView>
-        </View>
+        </SafeAreaView>
       </Modal>
 
       {/* Course Detail Modal */}
@@ -1128,12 +1177,7 @@ export default function AdminCourses() {
         onRequestClose={() => setDetailModalVisible(false)}
       >
         {selectedCourse && (
-          <View
-            style={[
-              styles.modalContainer,
-              { backgroundColor: theme.background },
-            ]}
-          >
+          <SafeAreaView style={[styles.modalContainer, { backgroundColor: theme.background }]}>
             {/* Modal Header */}
             <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
               <TouchableOpacity
@@ -1432,10 +1476,10 @@ export default function AdminCourses() {
                 </TouchableOpacity>
               </View>
             </ScrollView>
-          </View>
+          </SafeAreaView>
         )}
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -1446,7 +1490,7 @@ const styles = StyleSheet.create({
 
   // Header
   headerGradient: {
-    paddingTop: 60,
+    paddingTop: 16,
     paddingBottom: 20,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 24,

@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "e-learning",
-    "slug": "e-learning",
+    "name": "IAIICT E-learning",
+    "slug": "IAIICT_E-learning",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/iaiict.jpeg",
     "scheme": "elearning",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -12,7 +12,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -22,16 +22,16 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/iaiict.jpeg"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#ffffff",
           "android": {
-            "image": "./assets/images/splash-icon.png",
+            "image": "./assets/images/iaiict.jpeg",
             "imageWidth": 76
           }
         }
@@ -45,7 +45,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "193edaac-afea-4d5b-88a3-453a94d270bb"
+        "projectId": "6a478c66-11da-4b46-abba-0d0b227e93e7"
       }
     }
   }

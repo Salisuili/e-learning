@@ -5,13 +5,12 @@ import { courseService } from '@/services/courses';
 import { getFileUrl } from '@/services/supabase';
 import { Assignment, AssignmentSubmission, Course } from '@/types';
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Animated,
+  Linking,  // ← Added Linking
   Modal,
   RefreshControl,
   ScrollView,
@@ -186,6 +185,7 @@ export default function LecturerSubmissions() {
     }
   };
 
+  // ✅ Updated: Use Linking.openURL() instead of FileSystem
   const downloadSubmissionFile = async (url: string, fileName: string) => {
     const absoluteUrl = getFileUrl(url);
     if (!absoluteUrl) {
@@ -194,20 +194,14 @@ export default function LecturerSubmissions() {
     }
 
     try {
-      const localUri = FileSystem.cacheDirectory + fileName;
-      const downloadResult = await FileSystem.downloadAsync(absoluteUrl, localUri);
-
-      const isAvailable = await Sharing.isAvailableAsync();
-      if (isAvailable) {
-        await Sharing.shareAsync(downloadResult.uri, {
-          mimeType: 'application/octet-stream',
-          dialogTitle: fileName,
-        });
+      const canOpen = await Linking.canOpenURL(absoluteUrl);
+      if (canOpen) {
+        await Linking.openURL(absoluteUrl);
       } else {
-        Alert.alert('Download Complete', `File saved to: ${downloadResult.uri}`);
+        Alert.alert('Error', 'Cannot open this file. Please try again.');
       }
     } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Could not download the file');
+      Alert.alert('Error', err?.message || 'Could not open the file');
     }
   };
 

@@ -377,6 +377,7 @@ export default function LecturerCourseDetailsScreen() {
 
       {/* Upload Material Modal */}
       <Modal visible={uploadModalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setUploadModalVisible(false)}>
+        <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}></View>
         <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
             <TouchableOpacity onPress={() => setUploadModalVisible(false)}>
@@ -436,6 +437,7 @@ export default function LecturerCourseDetailsScreen() {
 
       {/* Create Assignment Modal */}
       <Modal visible={createModalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setCreateModalVisible(false)}>
+        <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}></View>
         <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
             <TouchableOpacity onPress={() => setCreateModalVisible(false)}>
